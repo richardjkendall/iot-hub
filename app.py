@@ -1,5 +1,6 @@
 import logging
 import os
+import json
 from sqlitedict import SqliteDict
 from flask import Flask, request, send_file
 from werkzeug.utils import secure_filename
@@ -9,10 +10,29 @@ from lov import esp_headers
 ALLOWED_EXT = [ "bin" ]
 
 app = Flask(__name__)
-db = SqliteDict("kv.db")
+db = SqliteDict("data/kv.db", encode=json.dumps)
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 logger = logging.getLogger(__name__)
+
+@app.route("/all", methods=["GET"])
+def get_all():
+  response = {}
+  for key, item in db.items():
+    response[key] = item
+  return success_json_response(response)
+
+@app.route("/bin", methods=["GET"])
+def get_all_bin():
+  response = {}
+  files = os.listdir("bin/")
+  for file in files:
+    response[file] = {
+      "name": file,
+      "hash": file_md5(f"bin/{file}"),
+      "modtime": os.path.getmtime(f"bin/{file}")
+    }
+  return success_json_response(response)
 
 @app.route("/", methods=["GET"])
 def root():
