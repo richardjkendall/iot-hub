@@ -1,13 +1,17 @@
 import logging
+import os
 from sqlitedict import SqliteDict
 from flask import Flask, request, send_file
+from werkzeug.utils import secure_filename
 from utils import success_json_response, return_error, return_specific_error, file_md5
 from lov import esp_headers
+
+ALLOWED_EXT = [ "bin" ]
 
 app = Flask(__name__)
 db = SqliteDict("kv.db")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 logger = logging.getLogger(__name__)
 
 @app.route("/", methods=["GET"])
@@ -15,6 +19,7 @@ def root():
   mac = request.headers.get("x-client-mac")
   if not mac:
     return return_error("no mac address in header")
+  logger.info(f"Got request for MAC {mac}")
   device = db.get(mac)
   response = {
     "mac": mac
@@ -23,7 +28,7 @@ def root():
     response["configured"] = "no"
   else:
     response["configured"] = "yes"
-    response = response | device
+    response = {**response, **device}
   return success_json_response(response)
 
 @app.route("/dev/<string:mac>", methods=["POST"])
@@ -31,18 +36,47 @@ def update_device(mac):
   device = db.get(mac, default = {})
   if not request.json:
     return return_error("Request should be JSON")
-  db[mac] = device | request.json
+  db[mac] = {**device, **request.json}
   db.commit()
   return success_json_response(
     db[mac]
   )
 
-@app.route("/config", methods=["POST"])
-def update_config():
-  if not request.json:
-    return return_error("Request should be JSON")
-  config = db.get("config", default={})
-  
+def allowed_file(filename):
+  return "." in filename and \
+    filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload_file():
+  if request.method == "POST":
+    if "file" not in request.files:
+      return '''
+Failed, no file part.
+'''
+    file = request.files["file"]
+    if file.filename == "":
+      return '''
+Failed, no selected file.
+'''
+    if file and allowed_file(file.filename):
+      filename = secure_filename(file.filename)
+      if os.path.isfile(os.path.join("bin", filename)):
+        return '''
+Failed, file exists.
+'''
+      file.save(os.path.join("bin", filename))
+      return f'''
+Saved as {filename}
+'''
+  return '''
+<!doctype html>
+<title>Upload new File</title>
+<h1>Upload new bin file</h1>
+<form method=post enctype=multipart/form-data>
+  <input type=file name=file>
+  <input type=submit value=Upload>
+</form>
+'''
 
 @app.route("/update", methods=["GET"])
 def update():
@@ -82,4 +116,4 @@ def update():
   return return_specific_error("304 Not Modified", 304)
 
 if __name__ == "__main__":
-  app.run(debug=True, host="0.0.0.0", threaded=True)
+  app.run(debug=True, host="0.0.0.0", port=5001, threaded=True)

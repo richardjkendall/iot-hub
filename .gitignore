@@ -3,3 +3,6 @@ bin
 __pycache__
 test.json
 *.db
+.DS_Store
+
+mosquitto.conf
