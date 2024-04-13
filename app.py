@@ -10,7 +10,7 @@ from lov import esp_headers
 ALLOWED_EXT = [ "bin" ]
 
 app = Flask(__name__)
-db = SqliteDict("data/kv.db", encode=json.dumps)
+db = SqliteDict("data/kv.db")
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 logger = logging.getLogger(__name__)
@@ -53,14 +53,24 @@ def root():
 
 @app.route("/dev/<string:mac>", methods=["POST"])
 def update_device(mac):
-  device = db.get(mac, default = {})
+  logger.info(f"Update of config for device with MAC={mac}")
   if not request.json:
     return return_error("Request should be JSON")
-  db[mac] = {**device, **request.json}
-  db.commit()
-  return success_json_response(
-    db[mac]
-  )
+  if mac in db:
+    device = db.get(mac, default = {})
+    db[mac] = {**device, **request.json}
+    db.commit()
+    return success_json_response(
+      db[mac]
+    )
+  else:
+    logger.info(f"Device {mac} is new")
+    db[mac] = {**request.json}
+    db.commit()
+    return success_json_response(
+      db[mac]
+    )
+
 
 def allowed_file(filename):
   return "." in filename and \
