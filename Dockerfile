@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 VOLUME "/data"  
 VOLUME "/bin"  
 
-CMD [ "gunicorn", "--bind", "0.0.0.0:8000", "-w", "4", "app:app" ]
+CMD [ "gunicorn", "--timeout", "600", "--bind", "0.0.0.0:8000", "-w", "4", "app:app" ]
