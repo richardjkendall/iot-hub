@@ -1,6 +1,5 @@
 import logging
 import os
-import json
 from sqlitedict import SqliteDict
 from flask import Flask, request, send_file
 from werkzeug.utils import secure_filename
