@@ -136,7 +136,9 @@ def update():
           download_name=binfile
         )
         resp.headers["x-MD5"] = server_md5
-        #return resp
+        return resp
+      else:
+        logger.info("MD5 matches, so not sending file")
         return return_specific_error("304 Not Modified", 304)
     else:
       logger.info("Device found, but no code key has been configured")
